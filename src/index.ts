@@ -5,13 +5,19 @@ import { authenticateToken, createToken } from './middlewares/jwt';
 import cookieParser from 'cookie-parser';
 import { v4 as uuidv4 } from 'uuid';
 import base62 from 'base62';
-
+import cors from 'cors';
 const app = express();
 const prisma = new PrismaClient();
 app.use(cookieParser()); // Add this middleware before your route handlers
 const httpServer = app.listen(8080);
 
 app.use(express.json());
+
+app.use(cors({
+  origin: "http://localhost:5173", // Your frontend's URL
+  credentials: true,              // Allow credentials (cookies)
+}));
+
 
 declare global {
   namespace Express {
@@ -23,9 +29,9 @@ declare global {
 
 
 // Sign up endpoint
-app.post('/signup', async (req: Request, res: Response) => {
+app.post('/signup', async (req:any, res:any) => {
   const { name, email, password }: { name: string; email: string; password: string } = req.body;
-
+  console.log(name);  
   const hashedPassword = await bcrypt.hash(password, 10);
 
   try {
@@ -37,17 +43,21 @@ app.post('/signup', async (req: Request, res: Response) => {
       },
     });
 
+    if (!user) {
+      return res.status(400).json({ error: 'Interna error' });
+    }
+
     const token = createToken(user.id);
 
     // Set the JWT token as a cookie (HTTP-Only)
     res.cookie('token', token, {
-      httpOnly: true,       // Ensures the cookie can't be accessed via JavaScript
-      secure: process.env.NODE_ENV === 'production', // Set to true in production for HTTPS
+      httpOnly: false,       // Ensures the cookie can't be accessed via JavaScript
+      secure: false, // Set to true in production for HTTPS
       maxAge: 3600000,      // 1 hour
-      sameSite: 'strict',   // Prevents the cookie from being sent in cross-site requests
+      sameSite: 'None',   // Prevents the cookie from being sent in cross-site requests
     });
 
-    res.json({ message: 'User created successfully' });
+    res.status(200).json({ message: 'User created successfully' });
   } catch (error) {
     res.status(500).json({ error: error});
   }
@@ -56,7 +66,7 @@ app.post('/signup', async (req: Request, res: Response) => {
 // Sign in endpoint
 app.post('/signin', async (req: any, res: any) => {
   const { email, password }: { email: string; password: string } = req.body;
-
+  console.log(req.body);
   try {
     const user = await prisma.user.findUnique({ where: { email } });
 
@@ -75,22 +85,31 @@ app.post('/signin', async (req: any, res: any) => {
     // Set the JWT token as a cookie (HTTP-Only)
     res.cookie('token', token, {
       httpOnly: true,       // Ensures the cookie can't be accessed via JavaScript
-      secure: process.env.NODE_ENV === 'production', // Set to true in production for HTTPS
+      secure: true, // Set to true in production for HTTPS
       maxAge: 3600000,      // 1 hour
-      sameSite: 'strict',   // Prevents the cookie from being sent in cross-site requests
+      sameSite: 'None',   // Prevents the cookie from being sent in cross-site requests
     });
-
+    console.log('Signed in successfully');
     res.json({ message: 'Signed in successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Error signing in' });
   }
 });
 
+// @ts-ignore
+app.get("/auth", authenticateToken,(req: Request, res: Response) => {
+  console.log("reached")
+    res.status(200).json({ valid: true });
+})
+
+app.post("/logout", (req: Request, res: Response) => {
+  res.clearCookie('token').json({ message: 'Logged out successfully' });
+});
 
 // @ts-ignore
 app.post("/createRoom", authenticateToken, async (req: Request, res: Response) => {
   const userId = req.user.userId;
-  const { name } = req.body;
+  const { roomName } = req.body;
 
   try {
     const user = await prisma.user.findUnique({
@@ -98,6 +117,9 @@ app.post("/createRoom", authenticateToken, async (req: Request, res: Response) =
       select: { rooms_created: true },
     });
 
+    if(user?.rooms_created.includes(roomName)){
+      return res.status(400).json({ message: "Room with same name already exists" });
+    }
     if (!user || user.rooms_created.length >= 4) {
       return res.status(400).json({ message: "Room creation limit exceeded" });
     }
@@ -108,7 +130,7 @@ app.post("/createRoom", authenticateToken, async (req: Request, res: Response) =
 
     const newRoom = await prisma.room.create({
       data: {
-        name,
+        name : roomName,
         roomId,
         adminId: userId,
       },
@@ -280,9 +302,9 @@ app.get("/joinedRooms",authenticateToken,async (req,res)=>{
 
 
 // @ts-ignore
-app.get("/roomUsers",authenticateToken,async(req,res)=>{
+app.get("/room/:code",authenticateToken,async(req,res)=>{
   const { userId } = req.user;
-  const code = req.body.code;
+  const code = req.params.code;
 
   try{
     const room = await prisma.room.findUnique({
