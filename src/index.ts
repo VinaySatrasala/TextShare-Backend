@@ -92,6 +92,7 @@ app.post('/signin', async (req: any, res: any) => {
     console.log('Signed in successfully');
     res.json({ message: 'Signed in successfully' });
   } catch (error) {
+    console.log(error);
     res.status(500).json({ error: 'Error signing in' });
   }
 });
@@ -101,7 +102,11 @@ app.get("/auth", authenticateToken,(req: Request, res: Response) => {
   console.log("reached")
     res.status(200).json({ valid: true });
 })
-
+app.get("/",(req,res)=>{
+  res.json({
+    "message" : "Hello"
+  });
+});
 app.post("/logout", (req: Request, res: Response) => {
   res.clearCookie('token').json({ message: 'Logged out successfully' });
 });
