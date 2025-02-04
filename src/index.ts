@@ -101,9 +101,21 @@ app.post('/signin', async (req: any, res: any) => {
 });
 
 // @ts-ignore
-app.get("/auth", authenticateToken,(req: Request, res: Response) => {
-  console.log("reached")
-    res.status(200).json({ valid: true });
+app.get("/auth", authenticateToken,async (req: Request, res: Response) => {
+  console.log("reached");
+  const { userId } = req.user;
+  try{
+    const user = await prisma.user.findUnique({
+      where : {
+        id : userId
+      },select : {
+        name : true,
+      }
+    });
+    res.status(200).json({ valid: true, name: user?.name });
+  }catch(error){
+    res.status(200).json({ valid: true , name : "User" });
+  }
 })
 app.get("/",(req,res)=>{
   res.json({
@@ -324,7 +336,8 @@ app.get("/room/:code",authenticateToken,async(req,res)=>{
         }
       }
     })
-    res.status(200).json(room);
+    console.log(room);
+    res.status(200).json({room,userId});
   }catch(error){
     console.error(error);
     res.status(500).json({ message: "Something went wrong" });
