@@ -6,11 +6,14 @@ import cookieParser from 'cookie-parser';
 import { v4 as uuidv4 } from 'uuid';
 import base62 from 'base62';
 import cors from 'cors';
+import redis from 'redis';
+import { setupWebSocket } from './WebSocket';
+
 const app = express();
 const prisma = new PrismaClient();
 app.use(cookieParser()); // Add this middleware before your route handlers
 const httpServer = app.listen(8080);
-
+setupWebSocket(httpServer);
 app.use(express.json());
 
 app.use(cors({
@@ -314,18 +317,13 @@ app.get("/room/:code",authenticateToken,async(req,res)=>{
   try{
     const room = await prisma.room.findUnique({
       where : {
-        roomId : code,
-        adminId : userId
+        roomId : code
       },include:{
-        users : true
+        users : {
+          select: { id: true, name: true, email: true }
+        }
       }
     })
-
-    if(!room){
-      res.status(400).json({
-        "message" : "You are not admin or room doesn't exist"
-      })
-    }
     res.status(200).json(room);
   }catch(error){
     console.error(error);
@@ -379,3 +377,6 @@ app.get("/deleteUser", authenticateToken, async (req, res) => {
     });
   }
 });
+
+
+export { app, httpServer };

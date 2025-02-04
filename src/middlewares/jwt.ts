@@ -11,7 +11,6 @@ const JWT_SECRET = "vinay-kumar";
 export const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
     // Retrieve token from cookies (assumes cookie name is 'token')
     const token = req.cookies.token;
-
     if (!token) {
         return res.status(401).json({ message: 'No token provided in cookies.' });
     }
