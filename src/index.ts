@@ -93,7 +93,7 @@ app.post('/signin', async (req: any, res: any) => {
       sameSite: 'None',   // Prevents the cookie from being sent in cross-site requests
     });
     console.log('Signed in successfully');
-    res.json({ message: 'Signed in successfully' });
+    res.json({ message: 'Signed in successfully',name : user.name });
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: 'Error signing in' });
@@ -156,7 +156,7 @@ app.post("/createRoom", authenticateToken, async (req: Request, res: Response) =
       },
     });
 
-    res.status(201).json({
+    res.status(200).json({
       message: "Room created successfully",
       room: newRoom,
     });
@@ -346,7 +346,7 @@ app.get("/room/:code",authenticateToken,async(req,res)=>{
 
 
 // @ts-ignore
-app.get("/deleteUser", authenticateToken, async (req, res) => {
+app.post("/deleteUser", authenticateToken, async (req, res) => {
   const { userId } = req.user;
   const { code, id } = req.body; // Destructure body values
 
