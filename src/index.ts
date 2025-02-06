@@ -335,9 +335,14 @@ app.get("/room/:code",authenticateToken,async(req,res)=>{
           select: { id: true, name: true, email: true }
         }
       }
+    });
+    const admin = await prisma.user.findUnique({
+      where : {
+        id : room?.adminId
+      }
     })
     console.log(room);
-    res.status(200).json({room,userId});
+    res.status(200).json({room,userId,adminName : admin?.name});
   }catch(error){
     console.error(error);
     res.status(500).json({ message: "Something went wrong" });
