@@ -354,7 +354,7 @@ app.get("/room/:code",authenticateToken,async(req,res)=>{
 app.post("/deleteUser", authenticateToken, async (req, res) => {
   const { userId } = req.user;
   const { code, id } = req.body; // Destructure body values
-
+  console.log(req.body);
   try {
     // Find the room by code and verify if the current user is the admin
     const room = await prisma.room.findUnique({

@@ -78,6 +78,17 @@ export const setupWebSocket = (server: HttpServer) => {
                 message: "Joined room successfully",
               })
             );
+
+            rooms[roomId]?.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                client.send(
+                  JSON.stringify({
+                    type: "user_joined",
+                    message: JSON.stringify({ id : userId, name: "Random name" }),
+                  })
+                );
+              }
+            });
           } else if (data.type === "message" && roomId) {
             rooms[roomId]?.forEach((client) => {
               if (client.readyState === WebSocket.OPEN) {
@@ -116,10 +127,11 @@ export const setupWebSocket = (server: HttpServer) => {
             // Disconnect the user
             userWs.send(
               JSON.stringify({
-                type : "removed",
-                message : "You are being removed by admin. Contact admin or join again"
+                type: "removed",
+                message:
+                  "You are being removed by admin. Contact admin or join again",
               })
-            )
+            );
             userWs.close();
 
             // Remove from room
@@ -131,7 +143,7 @@ export const setupWebSocket = (server: HttpServer) => {
                 client.send(
                   JSON.stringify({
                     type: "user-removed",
-                    message: `User ${userToRemoveId} was removed`,
+                    message: JSON.stringify({ userRemoved: userToRemoveId }),
                   })
                 );
               }
@@ -147,6 +159,17 @@ export const setupWebSocket = (server: HttpServer) => {
 
       ws.on("close", () => {
         if (roomId && rooms[roomId]) {
+          rooms[roomId].forEach((client) => {
+            if (client != ws && client.readyState === WebSocket.OPEN) {
+              client.send(
+                JSON.stringify({
+                  type: "user-exited",
+                  message: JSON.stringify(userConnections.get(ws)),
+                })
+              );
+            }
+          });
+
           rooms[roomId].delete(ws);
           if (rooms[roomId].size === 0) delete rooms[roomId];
         }
