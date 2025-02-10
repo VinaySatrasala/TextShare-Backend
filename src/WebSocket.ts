@@ -3,12 +3,23 @@ import { Server as HttpServer } from "http";
 import { PrismaClient } from "@prisma/client";
 import cookie from "cookie";
 import jwt from "jsonwebtoken";
-
+import {createClient} from "redis"
 const prisma = new PrismaClient();
 const JWT_SECRET = "vinay-kumar"; // Store this in an env variable
 
 const rooms: Record<string, Set<WebSocket>> = {}; // Store room connections
 const userConnections: Map<WebSocket, number> = new Map(); // Map WebSocket connections to user IDs
+
+// Create Redis client
+const redisClient = createClient();
+redisClient.connect();
+redisClient.on('connect', () => {
+  console.log('Connected to Redis');
+});
+
+redisClient.on('error', (err) => {
+  console.error('Error connecting to Redis:', err);
+});
 
 export const setupWebSocket = (server: HttpServer) => {
   const wss = new WebSocketServer({ server });
@@ -79,17 +90,53 @@ export const setupWebSocket = (server: HttpServer) => {
               })
             );
 
+            // Retrieve messages from Redis for the last 24 hours
+            try {
+              const messages = await redisClient.zRangeByScore(
+                `room:${roomId}:messages`,
+                Date.now() - 86400000, // 24 hours in milliseconds
+                Date.now()
+              );
+
+              // Send the messages to the user
+              messages.forEach((msg) => {
+                ws.send(
+                  JSON.stringify({ type: "message", text: msg })
+                );
+              });
+            } catch (err) {
+              console.error("Error retrieving messages from Redis", err);
+            }
+
             rooms[roomId]?.forEach((client) => {
               if (client.readyState === WebSocket.OPEN) {
                 client.send(
                   JSON.stringify({
                     type: "user_joined",
-                    message: JSON.stringify({ id : userId, name: "Random name" }),
+                    message: JSON.stringify({ id: userId, name: "Random name" }),
                   })
                 );
               }
             });
           } else if (data.type === "message" && roomId) {
+            // Store the message in Redis with timestamp as score
+            const timestamp = Date.now();
+            redisClient.zAdd(`room:${roomId}:messages`, [
+              {
+                score: timestamp,
+                value: data.text
+              }
+            ]).catch(err => {
+              console.error("Error saving message to Redis", err);
+            });
+
+            // Set TTL for the message (24 hours)
+            redisClient.expire(`room:${roomId}:messages`, 86400)
+              .catch((err) => {
+                console.error("Error setting TTL for Redis key", err);
+              });
+
+            // Broadcast the message to other users in the room
             rooms[roomId]?.forEach((client) => {
               if (client.readyState === WebSocket.OPEN) {
                 client.send(
@@ -163,7 +210,7 @@ export const setupWebSocket = (server: HttpServer) => {
             if (client != ws && client.readyState === WebSocket.OPEN) {
               client.send(
                 JSON.stringify({
-                  type: "user-exited",
+                  type: "user_offline",
                   message: JSON.stringify(userConnections.get(ws)),
                 })
               );

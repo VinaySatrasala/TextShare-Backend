@@ -54,8 +54,8 @@ app.post('/signup', async (req:any, res:any) => {
 
     // Set the JWT token as a cookie (HTTP-Only)
     res.cookie('token', token, {
-      httpOnly: false,       // Ensures the cookie can't be accessed via JavaScript
-      secure: false, // Set to true in production for HTTPS
+      httpOnly: true,       // Ensures the cookie can't be accessed via JavaScript
+      secure: true, // Set to true in production for HTTPS
       maxAge: 3600000,      // 1 hour
       sameSite: 'None',   // Prevents the cookie from being sent in cross-site requests
     });
