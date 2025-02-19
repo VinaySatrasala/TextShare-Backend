@@ -1,1 +1,1 @@
-{"root":["./src/index.ts","./src/middlewares/jwt.ts"],"version":"5.6.3"}
+{"root":["./src/WebSocket.ts","./src/index.ts","./src/types.ts","./src/middlewares/authWebSocket.ts","./src/middlewares/jwt.ts"],"version":"5.7.3"}

@@ -17,7 +17,7 @@ setupWebSocket(httpServer);
 app.use(express.json());
 
 app.use(cors({
-  origin: "http://localhost:5173", // Your frontend's URL
+  origin: "https://super-duper-trout-jwwqpgxjx5637jq-5173.app.github.dev", // Your frontend's URL
   credentials: true,              // Allow credentials (cookies)
 }));
 

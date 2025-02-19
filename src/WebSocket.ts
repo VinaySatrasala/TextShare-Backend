@@ -1,7 +1,6 @@
 import { WebSocketServer, WebSocket } from "ws";
 import { Server as HttpServer } from "http";
 import { PrismaClient } from "@prisma/client";
-import cookie from "cookie";
 import jwt from "jsonwebtoken";
 import {createClient} from "redis"
 const prisma = new PrismaClient();
@@ -11,7 +10,8 @@ const rooms: Record<string, Set<WebSocket>> = {}; // Store room connections
 const userConnections: Map<WebSocket, number> = new Map(); // Map WebSocket connections to user IDs
 
 // Create Redis client
-const redisClient = createClient();
+const redisClient = createClient({
+});
 redisClient.connect();
 redisClient.on('connect', () => {
   console.log('Connected to Redis');
@@ -28,9 +28,9 @@ export const setupWebSocket = (server: HttpServer) => {
     let roomId: string | null = null;
 
     // Extract cookies from handshake headers
-    const token = request.headers.cookie?.slice(6);
-
-    if (!token) {
+    const token = request.headers.cookie?.match(/token=([^;]*)/)?.[1];
+    console.log("Token:", token);
+        if (!token) {
       ws.send(
         JSON.stringify({ type: "error", message: "Authentication required" })
       );
@@ -66,7 +66,7 @@ export const setupWebSocket = (server: HttpServer) => {
             // Check if the user belongs to the room
             const foundRoom = await prisma.room.findUnique({
               where: { roomId },
-              include: { users: { select: { id: true } } },
+              include: { users: { select: { id: true,name:true } } },
             });
             if (
               !foundRoom ||
@@ -109,11 +109,16 @@ export const setupWebSocket = (server: HttpServer) => {
             }
 
             rooms[roomId]?.forEach((client) => {
+              console.log(foundRoom.users);
               if (client.readyState === WebSocket.OPEN) {
                 client.send(
                   JSON.stringify({
                     type: "user_joined",
-                    message: JSON.stringify({ id: userId, name: "Random name" }),
+                    message: JSON.stringify({ 
+                      id: userId, 
+                      name: foundRoom.users.find(x => x.id == userId)?.name 
+                    }),
+                  
                   })
                 );
               }
@@ -226,6 +231,7 @@ export const setupWebSocket = (server: HttpServer) => {
       });
     } catch (err) {
       ws.send(JSON.stringify({ type: "error", message: "Invalid token" }));
+      console.log(err)
       ws.close(); // Close connection if token is invalid
     }
   });
