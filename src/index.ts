@@ -17,7 +17,7 @@ setupWebSocket(httpServer);
 app.use(express.json());
 
 app.use(cors({
-  origin: "https://super-duper-trout-jwwqpgxjx5637jq-5173.app.github.dev", // Your frontend's URL
+  origin: "http://localhost:5173", // Your frontend's URL
   credentials: true,              // Allow credentials (cookies)
 }));
 
@@ -47,7 +47,7 @@ app.post('/signup', async (req:any, res:any) => {
     });
 
     if (!user) {
-      return res.status(400).json({ error: 'Interna error' });
+      return res.status(400).json({ error: 'Internal error' });
     }
 
     const token = createToken(user.id);

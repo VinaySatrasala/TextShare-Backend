@@ -11,6 +11,7 @@ const userConnections: Map<WebSocket, number> = new Map(); // Map WebSocket conn
 
 // Create Redis client
 const redisClient = createClient({
+  url: ""
 });
 redisClient.connect();
 redisClient.on('connect', () => {
@@ -83,10 +84,21 @@ export const setupWebSocket = (server: HttpServer) => {
             if (!rooms[roomId]) rooms[roomId] = new Set();
             rooms[roomId].add(ws);
 
+            const activeConnections: number[] = []; // Store active user IDs
+
+            rooms[roomId]?.forEach((socket) => {
+                if (userConnections.has(socket)) {
+                    activeConnections.push(userConnections.get(socket)!);
+                }
+            });
+
             ws.send(
               JSON.stringify({
                 type: "success",
-                message: "Joined room successfully",
+                message: JSON.stringify({
+                  message : "Joined room successfully",
+                  activeUsers : activeConnections
+                }),
               })
             );
 
