@@ -3,15 +3,26 @@ import { Server as HttpServer } from "http";
 import { PrismaClient } from "@prisma/client";
 import jwt from "jsonwebtoken";
 import {createClient} from "redis"
+import { env } from "process";
 const prisma = new PrismaClient();
-const JWT_SECRET = "vinay-kumar"; // Store this in an env variable
+const JWT_SECRET = process.env.JWT_SECRET; // Store this in an env variable
 
 const rooms: Record<string, Set<WebSocket>> = {}; // Store room connections
 const userConnections: Map<WebSocket, number> = new Map(); // Map WebSocket connections to user IDs
 
+if(!JWT_SECRET){
+  console.error("JWT_SECRET is not defined in the environment variables");
+  process.exit(1);
+}
+
+if(!process.env.REDIS_URL){
+  console.error("REDIS_URL is not defined in the environment variables");
+  process.exit(1);
+}
+
 // Create Redis client
 const redisClient = createClient({
-  url: ""
+  url: process.env.REDIS_URL
 });
 redisClient.connect();
 redisClient.on('connect', () => {
