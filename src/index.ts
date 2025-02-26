@@ -19,7 +19,7 @@ setupWebSocket(httpServer);
 app.use(express.json());
 
 app.use(cors({
-  origin: "http://localhost:5173", // Your frontend's URL
+  origin: process.env.FRONTEND_URL, // Your frontend's URL
   credentials: true,              // Allow credentials (cookies)
 }));
 
