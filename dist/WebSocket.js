@@ -18,11 +18,21 @@ const client_1 = require("@prisma/client");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const redis_1 = require("redis");
 const prisma = new client_1.PrismaClient();
-const JWT_SECRET = "vinay-kumar"; // Store this in an env variable
+const JWT_SECRET = process.env.JWT_SECRET; // Store this in an env variable
 const rooms = {}; // Store room connections
 const userConnections = new Map(); // Map WebSocket connections to user IDs
+if (!JWT_SECRET) {
+    console.error("JWT_SECRET is not defined in the environment variables");
+    process.exit(1);
+}
+if (!process.env.REDIS_URL) {
+    console.error("REDIS_URL is not defined in the environment variables");
+    process.exit(1);
+}
 // Create Redis client
-const redisClient = (0, redis_1.createClient)();
+const redisClient = (0, redis_1.createClient)({
+    url: process.env.REDIS_URL
+});
 redisClient.connect();
 redisClient.on('connect', () => {
     console.log('Connected to Redis');
@@ -33,10 +43,11 @@ redisClient.on('error', (err) => {
 const setupWebSocket = (server) => {
     const wss = new ws_1.WebSocketServer({ server });
     wss.on("connection", (ws, request) => __awaiter(void 0, void 0, void 0, function* () {
-        var _a;
+        var _a, _b;
         let roomId = null;
         // Extract cookies from handshake headers
-        const token = (_a = request.headers.cookie) === null || _a === void 0 ? void 0 : _a.slice(6);
+        const token = (_b = (_a = request.headers.cookie) === null || _a === void 0 ? void 0 : _a.match(/token=([^;]*)/)) === null || _b === void 0 ? void 0 : _b[1];
+        console.log("Token:", token);
         if (!token) {
             ws.send(JSON.stringify({ type: "error", message: "Authentication required" }));
             ws.close(); // Close connection if no token
@@ -49,7 +60,7 @@ const setupWebSocket = (server) => {
             // Store the user ID in the WebSocket connection object
             userConnections.set(ws, userId);
             ws.on("message", (message) => __awaiter(void 0, void 0, void 0, function* () {
-                var _a, _b;
+                var _a, _b, _c;
                 try {
                     const data = JSON.parse(message.toString());
                     if (data.type === "join") {
@@ -65,7 +76,7 @@ const setupWebSocket = (server) => {
                         // Check if the user belongs to the room
                         const foundRoom = yield prisma.room.findUnique({
                             where: { roomId },
-                            include: { users: { select: { id: true } } },
+                            include: { users: { select: { id: true, name: true } } },
                         });
                         if (!foundRoom ||
                             (!foundRoom.users.some((user) => user.id === userId) &&
@@ -77,9 +88,18 @@ const setupWebSocket = (server) => {
                         if (!rooms[roomId])
                             rooms[roomId] = new Set();
                         rooms[roomId].add(ws);
+                        const activeConnections = []; // Store active user IDs
+                        (_a = rooms[roomId]) === null || _a === void 0 ? void 0 : _a.forEach((socket) => {
+                            if (userConnections.has(socket)) {
+                                activeConnections.push(userConnections.get(socket));
+                            }
+                        });
                         ws.send(JSON.stringify({
                             type: "success",
-                            message: "Joined room successfully",
+                            message: JSON.stringify({
+                                message: "Joined room successfully",
+                                activeUsers: activeConnections
+                            }),
                         }));
                         // Retrieve messages from Redis for the last 24 hours
                         try {
@@ -93,11 +113,16 @@ const setupWebSocket = (server) => {
                         catch (err) {
                             console.error("Error retrieving messages from Redis", err);
                         }
-                        (_a = rooms[roomId]) === null || _a === void 0 ? void 0 : _a.forEach((client) => {
+                        (_b = rooms[roomId]) === null || _b === void 0 ? void 0 : _b.forEach((client) => {
+                            var _a;
+                            console.log(foundRoom.users);
                             if (client.readyState === ws_1.WebSocket.OPEN) {
                                 client.send(JSON.stringify({
                                     type: "user_joined",
-                                    message: JSON.stringify({ id: userId, name: "Random name" }),
+                                    message: JSON.stringify({
+                                        id: userId,
+                                        name: (_a = foundRoom.users.find(x => x.id == userId)) === null || _a === void 0 ? void 0 : _a.name
+                                    }),
                                 }));
                             }
                         });
@@ -119,7 +144,7 @@ const setupWebSocket = (server) => {
                             console.error("Error setting TTL for Redis key", err);
                         });
                         // Broadcast the message to other users in the room
-                        (_b = rooms[roomId]) === null || _b === void 0 ? void 0 : _b.forEach((client) => {
+                        (_c = rooms[roomId]) === null || _c === void 0 ? void 0 : _c.forEach((client) => {
                             if (client.readyState === ws_1.WebSocket.OPEN) {
                                 client.send(JSON.stringify({ type: "message", text: data.text }));
                             }
@@ -186,6 +211,7 @@ const setupWebSocket = (server) => {
         }
         catch (err) {
             ws.send(JSON.stringify({ type: "error", message: "Invalid token" }));
+            console.log(err);
             ws.close(); // Close connection if token is invalid
         }
     }));

@@ -48,7 +48,7 @@ app.post('/signup', (req, res) => __awaiter(void 0, void 0, void 0, function* ()
             },
         });
         if (!user) {
-            return res.status(400).json({ error: 'Interna error' });
+            return res.status(400).json({ error: 'Internal error' });
         }
         const token = (0, jwt_1.createToken)(user.id);
         // Set the JWT token as a cookie (HTTP-Only)
