@@ -6,13 +6,15 @@ import cookieParser from 'cookie-parser';
 import { v4 as uuidv4 } from 'uuid';
 import base62 from 'base62';
 import cors from 'cors';
-import redis from 'redis';
 import { setupWebSocket } from './WebSocket';
 
+const PORT = process.env.PORT || 8080;
 const app = express();
 const prisma = new PrismaClient();
 app.use(cookieParser()); // Add this middleware before your route handlers
-const httpServer = app.listen(8080);
+const httpServer = app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
 setupWebSocket(httpServer);
 app.use(express.json());
 
