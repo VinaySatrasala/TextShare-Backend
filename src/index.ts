@@ -9,18 +9,19 @@ import cors from 'cors';
 import { setupWebSocket } from './WebSocket';
 
 const PORT = process.env.PORT || 8080;
+const origin = process.env.FRONTEND_URL || "https://text-share-frontend.vercel.app";
 const app = express();
 const prisma = new PrismaClient();
 app.use(cookieParser()); // Add this middleware before your route handlers
 const httpServer = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log("Allowed Origin:", process.env.FRONTEND_URL);
+  console.log("Allowed Origin:", origin);
 });
 setupWebSocket(httpServer);
 app.use(express.json());
 
 app.use(cors({
-  origin: "https://text-share-frontend.vercel.app/", // Your frontend's URL
+  origin: origin, // Your frontend's URL
   credentials: true,              // Allow credentials (cookies)
 }));
 
