@@ -14,12 +14,13 @@ const prisma = new PrismaClient();
 app.use(cookieParser()); // Add this middleware before your route handlers
 const httpServer = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log("Allowed Origin:", process.env.FRONTEND_URL);
 });
 setupWebSocket(httpServer);
 app.use(express.json());
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL, // Your frontend's URL
+  origin: "https://text-share-frontend.vercel.app/", // Your frontend's URL
   credentials: true,              // Allow credentials (cookies)
 }));
 
